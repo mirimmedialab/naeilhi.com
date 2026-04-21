@@ -1,7 +1,12 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+interface CookieToSet {
+  name: string;
+  value: string;
+  options?: CookieOptions;
+}
 /**
  * Server Component / Server Action / Route Handler에서 사용하는
  * 기본 Supabase 클라이언트. 사용자 세션 쿠키를 읽어 auth.uid()에 반영.
@@ -17,7 +22,7 @@ export async function createClient() {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: CookieToSet[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
