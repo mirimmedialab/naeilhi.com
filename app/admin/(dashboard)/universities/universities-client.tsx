@@ -133,7 +133,7 @@ export default function UniversitiesClient({
           className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition tap-scale shrink-0"
         >
           <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">링크 만들기</span>
+          <span className="hidden sm:inline">대학 추가</span>
         </button>
       </div>
 
@@ -399,11 +399,8 @@ function UniCard({
       <p className="text-[11px] text-slate-500 font-mono mb-3">{university.code}</p>
 
       <div className="bg-slate-50 rounded-lg p-2.5 mb-3 border border-slate-100">
-        <p className="text-[10px] text-slate-400 mb-1.5">전용 URL</p>
-        <div className="flex items-center gap-1.5">
-          <code className="text-[10px] text-slate-700 font-mono flex-1 truncate">
-            /u/{university.slug}
-          </code>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-xs text-slate-500 font-semibold">전용 URL 복사하기</p>
           <button
             onClick={onCopyShort}
             disabled={shortening}
@@ -431,7 +428,7 @@ function UniCard({
           target="_blank"
           className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
         >
-          미리보기 <ExternalLink className="w-3 h-3" />
+          바로가기 <ExternalLink className="w-3 h-3" />
         </Link>
       </div>
     </div>
