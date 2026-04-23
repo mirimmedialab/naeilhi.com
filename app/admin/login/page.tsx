@@ -112,10 +112,6 @@ function LoginForm() {
         </button>
       </div>
 
-      <p className="mt-4 text-center text-[11px] text-slate-500">
-        계정은 어드민이 <code className="text-slate-300 font-mono">Supabase Dashboard</code>에서 발급합니다
-      </p>
-
       <Link
         href="/"
         className="block w-full mt-4 py-2 text-xs text-slate-500 hover:text-slate-300 text-center"
