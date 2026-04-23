@@ -21,6 +21,7 @@ import {
   INELIGIBLE_GRADES,
   type Grade,
   type UniversityType,
+  type ApplicationFormData,
 } from '@/types';
 import type { Course } from '@/types';
 import { submitApplication } from './actions';
@@ -46,13 +47,15 @@ export default function ApplicationForm({
       ? '대학원'
       : '';
 
-  const [form, setForm] = useState({
+  // 명시적 타입 지정: useState가 초기값 삼항연산자로부터 타입을 좁게 추론하는 것을 방지.
+  // grade 필드는 UI에서 '1-2학년'/'3-4학년'도 받아야 하므로 Grade | '' 전체 union을 허용해야 함.
+  const [form, setForm] = useState<ApplicationFormData>({
     name: '',
     phone: '',
     email: '',
     department: '',
     grade: initialGrade,
-    hasCard: null as boolean | null,
+    hasCard: null,
     agreed: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
