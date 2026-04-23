@@ -22,6 +22,7 @@ export const COURSES: Course[] = [
     icon: 'Sparkles',
     accent: '#3B82F6',
     gradient: 'from-blue-500 via-blue-600 to-indigo-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/16?categorySeq=43&subCategorySeq=47',
     certification: {
       type: 'microsoft',
       label: 'MS 공식 수료증',
@@ -64,6 +65,7 @@ export const COURSES: Course[] = [
     icon: 'Code',
     accent: '#8B5CF6',
     gradient: 'from-violet-500 via-purple-600 to-fuchsia-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/18?categorySeq=43&subCategorySeq=47',
     targets: [
       '코틀린을 활용한 프로그래밍에 입문하고자 하는 분',
       '자바 기반 백엔드 개발자 중 코틀린 전환을 고려하는 개발자',
@@ -96,6 +98,7 @@ export const COURSES: Course[] = [
     icon: 'HeartPulse',
     accent: '#10B981',
     gradient: 'from-emerald-500 via-teal-600 to-cyan-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/14?categorySeq=43&subCategorySeq=47',
     targets: [
       '보건/의료/헬스/바이오 관련 재직중이며, 실무 역량 강화하고 싶은 분',
       '환자정보 등 바이오헬스 데이터 수집 및 분석 능력을 향상 시키고 싶은 분',
@@ -129,6 +132,7 @@ export const COURSES: Course[] = [
     icon: 'Shield',
     accent: '#EF4444',
     gradient: 'from-rose-500 via-red-600 to-orange-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/17?categorySeq=43&subCategorySeq=47',
     targets: [
       '기초 보안장비 활용 방법을 알고 사이버 보안 분야에 입문하고자 하는 분',
       '네트워크, 시스템, 개발 등 IT 직무 수행 중 보안 역량이 필요하신 분',
@@ -162,6 +166,7 @@ export const COURSES: Course[] = [
     icon: 'Bot',
     accent: '#F59E0B',
     gradient: 'from-amber-500 via-orange-600 to-red-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/15?categorySeq=43&subCategorySeq=47',
     warning: '해당 과정은 실습 장비 개인 구비가 필요합니다',
     targets: [
       '이공계 전공자 등 로봇 개발 및 제어에 관심있는 분',
@@ -195,6 +200,7 @@ export const COURSES: Course[] = [
     icon: 'Brain',
     accent: '#0EA5E9',
     gradient: 'from-sky-500 via-cyan-600 to-blue-600',
+    externalUrl: 'https://hi-d.hightecher.co.kr/product/detail/24?categorySeq=43&subCategorySeq=47',
     targets: [
       '생성형AI를 원리부터 알고싶은 직장인·대학생',
       '기획·데이터·개발 협업 등에서 기술적 이해가 필요한 실무자',

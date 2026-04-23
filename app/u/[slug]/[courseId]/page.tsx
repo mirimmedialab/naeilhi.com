@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   User,
   Award,
+  type LucideIcon,
 } from 'lucide-react';
 import { MobileFrame } from '@/components/mobile-frame';
 import { CourseIcon } from '@/components/course-icon';
@@ -16,6 +17,7 @@ import { MSLogo } from '@/components/ms-logo';
 import { createClient } from '@/lib/supabase/server';
 import { getCourseById } from '@/lib/constants';
 import { fmt } from '@/lib/utils';
+import { getUniversityType } from '@/types';
 import ApplicationForm from './application-form';
 
 export const revalidate = 300;
@@ -44,6 +46,9 @@ export default async function CourseDetailPage({
     notFound();
   }
 
+  // 대학 학제 판별 (code 필드 기반)
+  const universityType = getUniversityType(university.code);
+
   // ?apply=1 일 때 신청 폼 렌더
   if (apply === '1') {
     return (
@@ -51,6 +56,7 @@ export default async function CourseDetailPage({
         <ApplicationForm
           universitySlug={university.slug}
           universityName={university.name}
+          universityType={universityType}
           course={course}
         />
       </MobileFrame>
@@ -264,7 +270,7 @@ function MetaCell({
   value,
   border,
 }: {
-  Icon: any;
+  Icon: LucideIcon;
   label: string;
   value: string;
   border?: boolean;

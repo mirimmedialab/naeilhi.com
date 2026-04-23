@@ -3,7 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { getCourseById } from '@/lib/constants';
-import type { Grade } from '@/types';
+import {
+  INELIGIBLE_GRADES,
+  getUniversityType,
+  type Grade,
+} from '@/types';
 
 export interface ApplicationSubmission {
   universitySlug: string;
@@ -30,7 +34,6 @@ export async function submitApplication(
   if (!/^\S+@\S+\.\S+$/.test(data.email))
     return { ok: false, error: '올바른 이메일 형식이 아닙니다' };
   if (!data.department?.trim()) return { ok: false, error: '학과를 입력해주세요' };
-  if (!data.grade) return { ok: false, error: '학년을 선택해주세요' };
   if (typeof data.hasCard !== 'boolean')
     return { ok: false, error: '내일배움카드 보유 여부를 선택해주세요' };
 
@@ -42,7 +45,7 @@ export async function submitApplication(
   const supabase = await createClient();
   const { data: university, error: uniErr } = await supabase
     .from('universities')
-    .select('id, name')
+    .select('id, name, code')
     .eq('slug', data.universitySlug)
     .eq('active', true)
     .single();
@@ -51,8 +54,35 @@ export async function submitApplication(
     return { ok: false, error: '유효하지 않은 대학입니다' };
   }
 
-  // ===== 4. 신청 생성 (service_role client로 RLS 우회) =====
-  // 위 1~3단계에서 모든 입력과 참조 무결성이 검증되었으므로 안전
+  // ===== 4. 학제별 grade 검증 및 정규화 =====
+  // - 전문대: grade는 '전문대'로 강제 (클라이언트가 다른 값 보내도 덮어씀)
+  // - 대학원: grade는 '대학원'으로 강제
+  // - 4년제: 사용자가 선택한 값 유지 ('1-2학년' 또는 '3-4학년')
+  const universityType = getUniversityType(university.code);
+  let finalGrade: Grade;
+
+  if (universityType === 'junior-college') {
+    finalGrade = '전문대';
+  } else if (universityType === 'graduate') {
+    finalGrade = '대학원';
+  } else {
+    // 4년제 - 클라이언트에서 받은 값 검증
+    if (!data.grade) return { ok: false, error: '학년을 선택해주세요' };
+    if (data.grade !== '1-2학년' && data.grade !== '3-4학년') {
+      return { ok: false, error: '올바르지 않은 학년 값입니다' };
+    }
+    // 1-2학년은 내일배움카드 대상자가 아니므로 거부
+    if (INELIGIBLE_GRADES.includes(data.grade)) {
+      return {
+        ok: false,
+        error: '내일배움카드 대상자가 아닙니다. 3-4학년부터 신청 가능합니다.',
+      };
+    }
+    finalGrade = data.grade;
+  }
+
+  // ===== 5. 신청 생성 (service_role client로 RLS 우회) =====
+  // 위 1~4단계에서 모든 입력과 참조 무결성이 검증되었으므로 안전
   const adminClient = createAdminClient();
   const { data: app, error } = await adminClient
     .from('applications')
@@ -65,7 +95,7 @@ export async function submitApplication(
       phone: data.phone.trim(),
       email: data.email.trim(),
       department: data.department.trim(),
-      grade: data.grade,
+      grade: finalGrade,
       has_card: data.hasCard,
       status: 'pending',
     })
@@ -86,7 +116,7 @@ export async function submitApplication(
     return { ok: false, error: '신청 접수 중 오류가 발생했습니다' };
   }
 
-  // ===== 5. 관리자 대시보드 캐시 갱신 =====
+  // ===== 6. 관리자 대시보드 캐시 갱신 =====
   revalidatePath('/admin/applications');
   revalidatePath('/admin');
 

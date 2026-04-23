@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import {
   Plus,
   Building2,
@@ -15,12 +15,28 @@ import {
   Hash,
   Settings,
   ChevronRight,
+  ChevronLeft,
   Power,
+  Zap,
+  Search,
+  type LucideIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import { fmt, cn } from '@/lib/utils';
 import type { University } from '@/types';
-import { createUniversity, updateUniversity, deleteUniversity } from './actions';
+import {
+  createUniversity,
+  updateUniversity,
+  deleteUniversity,
+  shortenUrl,
+} from './actions';
+
+type CopyState = {
+  id: string;
+  type: 'full' | 'short';
+} | null;
+
+const PER_PAGE = 30;
 
 export default function UniversitiesClient({
   universities,
@@ -31,7 +47,41 @@ export default function UniversitiesClient({
 }) {
   const [editing, setEditing] = useState<University | null>(null);
   const [adding, setAdding] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<CopyState>(null);
+  const [shorteningId, setShorteningId] = useState<string | null>(null);
+
+  // 검색 / 페이지 상태
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  // 검색 필터링 + 이름순 정렬
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = q
+      ? universities.filter((u) => u.name.toLowerCase().includes(q))
+      : universities;
+    return [...list].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
+  }, [universities, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PER_PAGE));
+
+  // 검색어 바뀌면 1페이지로 리셋
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
+  // 현재 페이지가 전체 페이지 수를 초과하면 조정
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  // 현재 페이지에 표시할 대학 목록
+  const paginated = useMemo(() => {
+    const start = (page - 1) * PER_PAGE;
+    return filtered.slice(start, start + PER_PAGE);
+  }, [filtered, page]);
+
+  const hasSearch = search.trim() !== '';
 
   const getLink = (slug: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -40,38 +90,134 @@ export default function UniversitiesClient({
 
   const copyLink = (id: string, slug: string) => {
     navigator.clipboard?.writeText(getLink(slug));
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setCopied({ id, type: 'full' });
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const copyShortLink = async (id: string, slug: string) => {
+    const longUrl = getLink(slug);
+    setShorteningId(id);
+
+    try {
+      const result = await shortenUrl(longUrl);
+
+      if (result.ok) {
+        navigator.clipboard?.writeText(result.shortUrl);
+        setCopied({ id, type: 'short' });
+        setTimeout(() => setCopied(null), 2000);
+      } else {
+        navigator.clipboard?.writeText(result.fallbackUrl);
+        alert(`${result.error}\n원본 URL이 대신 복사되었습니다.`);
+      }
+    } catch (err) {
+      console.error('shortenUrl error:', err);
+      navigator.clipboard?.writeText(longUrl);
+      alert('단축 URL 생성 중 오류가 발생했습니다. 원본 URL이 대신 복사되었습니다.');
+    } finally {
+      setShorteningId(null);
+    }
   };
 
   return (
     <div>
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-2xl font-bold text-slate-900 mb-1">대학 관리</h1>
-          <p className="text-sm text-slate-500">연계 대학 및 전용 URL 관리</p>
+          <p className="text-sm text-slate-500">
+            총 {fmt(universities.length)}개 · 연계 대학 및 전용 URL 관리
+          </p>
         </div>
         <button
           onClick={() => setAdding(true)}
-          className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition tap-scale"
+          className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 transition tap-scale shrink-0"
         >
           <Plus className="w-4 h-4" />
-          링크 만들기
+          <span className="hidden sm:inline">링크 만들기</span>
         </button>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {universities.map((u) => (
-          <UniCard
-            key={u.id}
-            university={u}
-            applicationsCount={counts[u.id] || 0}
-            onEdit={() => setEditing(u)}
-            onCopy={() => copyLink(u.id, u.slug)}
-            copied={copiedId === u.id}
+      {/* 검색바 */}
+      <div className="mb-4 space-y-2">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="대학명 검색"
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
-        ))}
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full hover:bg-slate-100 flex items-center justify-center"
+              title="검색어 지우기"
+            >
+              <X className="w-3.5 h-3.5 text-slate-500" />
+            </button>
+          )}
+        </div>
+
+        {/* 결과 카운트 */}
+        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+          <span>
+            {hasSearch ? (
+              <>
+                검색 결과{' '}
+                <span className="font-bold text-slate-900">{fmt(filtered.length)}</span>개
+                <span className="text-slate-400"> / 전체 {fmt(universities.length)}개</span>
+              </>
+            ) : (
+              <>
+                전체 <span className="font-bold text-slate-900">{fmt(universities.length)}</span>개
+              </>
+            )}
+          </span>
+          {totalPages > 1 && (
+            <span className="text-slate-400">
+              {page} / {totalPages} 페이지
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* 카드 그리드 */}
+      {paginated.length === 0 ? (
+        <div className="text-center py-16 bg-slate-50 rounded-2xl border border-slate-100">
+          <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
+          <p className="text-sm font-medium text-slate-700 mb-1">검색 결과가 없습니다</p>
+          <p className="text-xs text-slate-500 mb-4">다른 검색어를 시도해보세요</p>
+          {hasSearch && (
+            <button
+              onClick={() => setSearch('')}
+              className="text-xs font-medium text-blue-600 hover:text-blue-700 underline"
+            >
+              검색어 지우기
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {paginated.map((u) => (
+            <UniCard
+              key={u.id}
+              university={u}
+              applicationsCount={counts[u.id] || 0}
+              onEdit={() => setEditing(u)}
+              onCopy={() => copyLink(u.id, u.slug)}
+              onCopyShort={() => copyShortLink(u.id, u.slug)}
+              copied={copied?.id === u.id ? copied.type : null}
+              shortening={shorteningId === u.id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* 페이지네이션 */}
+      {totalPages > 1 && (
+        <Pagination currentPage={page} totalPages={totalPages} onChange={setPage} />
+      )}
 
       {(adding || editing) && (
         <UniversityModal
@@ -87,18 +233,99 @@ export default function UniversitiesClient({
   );
 }
 
+/**
+ * 페이지네이션 — 현재 페이지 주변 ±2 페이지만 보여주고, 처음/끝은 ... 로 생략
+ */
+function Pagination({
+  currentPage,
+  totalPages,
+  onChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  const pages = useMemo(() => {
+    const arr: (number | 'ellipsis-start' | 'ellipsis-end')[] = [];
+    const delta = 2;
+
+    arr.push(1);
+    if (currentPage - delta > 2) arr.push('ellipsis-start');
+
+    for (
+      let i = Math.max(2, currentPage - delta);
+      i <= Math.min(totalPages - 1, currentPage + delta);
+      i++
+    ) {
+      arr.push(i);
+    }
+
+    if (currentPage + delta < totalPages - 1) arr.push('ellipsis-end');
+    if (totalPages > 1) arr.push(totalPages);
+
+    return arr;
+  }, [currentPage, totalPages]);
+
+  return (
+    <div className="flex items-center justify-center gap-1 mt-8">
+      <button
+        onClick={() => onChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="w-9 h-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        title="이전 페이지"
+      >
+        <ChevronLeft className="w-4 h-4 text-slate-600" />
+      </button>
+
+      {pages.map((p, i) =>
+        typeof p === 'number' ? (
+          <button
+            key={i}
+            onClick={() => onChange(p)}
+            className={cn(
+              'min-w-9 h-9 px-3 rounded-lg text-sm font-medium transition',
+              p === currentPage
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            )}
+          >
+            {p}
+          </button>
+        ) : (
+          <span key={i} className="w-9 h-9 flex items-center justify-center text-slate-400">
+            …
+          </span>
+        )
+      )}
+
+      <button
+        onClick={() => onChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="w-9 h-9 rounded-lg border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition"
+        title="다음 페이지"
+      >
+        <ChevronRight className="w-4 h-4 text-slate-600" />
+      </button>
+    </div>
+  );
+}
+
 function UniCard({
   university,
   applicationsCount,
   onEdit,
   onCopy,
+  onCopyShort,
   copied,
+  shortening,
 }: {
   university: University;
   applicationsCount: number;
   onEdit: () => void;
   onCopy: () => void;
-  copied: boolean;
+  onCopyShort: () => void;
+  copied: 'full' | 'short' | null;
+  shortening: boolean;
 }) {
   const [pending, startTransition] = useTransition();
 
@@ -172,19 +399,23 @@ function UniCard({
       <p className="text-[11px] text-slate-500 font-mono mb-3">{university.code}</p>
 
       <div className="bg-slate-50 rounded-lg p-2.5 mb-3 border border-slate-100">
-        <p className="text-[10px] text-slate-400 mb-1">전용 URL</p>
+        <p className="text-[10px] text-slate-400 mb-1.5">전용 URL</p>
         <div className="flex items-center gap-1.5">
           <code className="text-[10px] text-slate-700 font-mono flex-1 truncate">
             /u/{university.slug}
           </code>
           <button
-            onClick={onCopy}
-            className="shrink-0 w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:border-blue-400 transition"
+            onClick={onCopyShort}
+            disabled={shortening}
+            title="URL 복사"
+            className="shrink-0 w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center hover:border-indigo-400 transition disabled:opacity-50 disabled:cursor-wait"
           >
-            {copied ? (
+            {shortening ? (
+              <div className="w-3 h-3 border-2 border-slate-300 border-t-indigo-500 rounded-full animate-spin" />
+            ) : copied === 'short' ? (
               <Check className="w-3.5 h-3.5 text-emerald-600" />
             ) : (
-              <Copy className="w-3.5 h-3.5 text-slate-600" />
+              <Zap className="w-3.5 h-3.5 text-indigo-600" />
             )}
           </button>
         </div>
@@ -365,7 +596,7 @@ function ModalField({
   error,
 }: {
   label: string;
-  Icon: any;
+  Icon: LucideIcon;
   required?: boolean;
   value: string;
   onChange: (v: string) => void;

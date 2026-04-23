@@ -121,3 +121,96 @@ export async function deleteUniversity(id: string) {
   revalidatePath('/admin/universities');
   return { ok: true };
 }
+
+/**
+ * is.gd API를 통해 URL을 단축합니다.
+ * - 무료, API 키 불필요
+ * - TinyURL과 달리 preview 페이지가 없어 바로 리다이렉트됨
+ * - 브라우저에서 직접 호출 시 CORS 차단되므로 서버에서 호출
+ * - 실패 시 원본 URL을 그대로 반환 (fallback)
+ *
+ * Rate limit: IP당 시간당 5회 기본. Vercel 서버리스 공유 IP 환경에서는
+ * 실용상 제한 없음. 내부 관리자 용도로 충분.
+ */
+export async function shortenUrl(
+  longUrl: string
+): Promise<{ ok: true; shortUrl: string } | { ok: false; error: string; fallbackUrl: string }> {
+  // 인증 체크
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { ok: false, error: '인증이 필요합니다', fallbackUrl: longUrl };
+  }
+
+  // URL 형식 검증
+  try {
+    new URL(longUrl);
+  } catch {
+    return { ok: false, error: '올바른 URL이 아닙니다', fallbackUrl: longUrl };
+  }
+
+  try {
+    // is.gd 단축 API 호출 (10초 타임아웃)
+    // format=simple: plain text 응답 (단축 URL만 반환)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+    const response = await fetch(
+      `https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`,
+      {
+        method: 'GET',
+        signal: controller.signal,
+        cache: 'no-store',
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: '단축 URL 생성에 실패했습니다',
+        fallbackUrl: longUrl,
+      };
+    }
+
+    const shortUrl = (await response.text()).trim();
+
+    // is.gd가 에러 시 'Error: ...' 형식 텍스트를 반환할 수 있음
+    if (!shortUrl || shortUrl.toLowerCase().startsWith('error')) {
+      return {
+        ok: false,
+        error: '단축 URL 생성에 실패했습니다',
+        fallbackUrl: longUrl,
+      };
+    }
+
+    // 응답이 https://is.gd/... 형식인지 검증
+    try {
+      const parsed = new URL(shortUrl);
+      if (!parsed.hostname.includes('is.gd')) {
+        return {
+          ok: false,
+          error: '올바르지 않은 단축 URL입니다',
+          fallbackUrl: longUrl,
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        error: '올바르지 않은 단축 URL입니다',
+        fallbackUrl: longUrl,
+      };
+    }
+
+    return { ok: true, shortUrl };
+  } catch (err) {
+    const errorMsg =
+      err instanceof Error && err.name === 'AbortError'
+        ? '단축 URL 요청 시간이 초과되었습니다'
+        : '단축 URL 서비스 연결에 실패했습니다';
+    return { ok: false, error: errorMsg, fallbackUrl: longUrl };
+  }
+}

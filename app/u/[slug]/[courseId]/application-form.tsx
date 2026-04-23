@@ -12,29 +12,46 @@ import {
   CheckCircle2,
   CreditCard,
   XCircle,
+  ExternalLink,
+  type LucideIcon,
 } from 'lucide-react';
 import { formatPhone, fmt, cn } from '@/lib/utils';
-import { GRADES, type Grade } from '@/types';
+import {
+  FOUR_YEAR_GRADE_OPTIONS,
+  INELIGIBLE_GRADES,
+  type Grade,
+  type UniversityType,
+} from '@/types';
 import type { Course } from '@/types';
 import { submitApplication } from './actions';
 
 interface Props {
   universitySlug: string;
   universityName: string;
+  universityType: UniversityType;
   course: Course;
 }
 
 export default function ApplicationForm({
   universitySlug,
   universityName,
+  universityType,
   course,
 }: Props) {
+  // 학제별 초기 grade 값: 4년제는 선택받음, 전문대/대학원은 자동 할당
+  const initialGrade: Grade | '' =
+    universityType === 'junior-college'
+      ? '전문대'
+      : universityType === 'graduate'
+      ? '대학원'
+      : '';
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
     email: '',
     department: '',
-    grade: '' as Grade | '',
+    grade: initialGrade,
     hasCard: null as boolean | null,
     agreed: false,
   });
@@ -45,6 +62,13 @@ export default function ApplicationForm({
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  // 학년 선택 UI를 보여주는 조건 (4년제만)
+  const showGradeSelector = universityType === 'four-year';
+
+  // 내일배움카드 대상자가 아닌지 판별
+  const isIneligible =
+    form.grade !== '' && INELIGIBLE_GRADES.includes(form.grade as Grade);
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = '이름을 입력해주세요';
@@ -52,13 +76,17 @@ export default function ApplicationForm({
       e.phone = '올바른 전화번호를 입력해주세요';
     if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = '올바른 이메일을 입력해주세요';
     if (!form.department.trim()) e.department = '학과를 입력해주세요';
-    if (!form.grade) e.grade = '학년을 선택해주세요';
+    // 4년제만 학년 선택 검증 (전문대/대학원은 자동 할당되므로 스킵)
+    if (showGradeSelector && !form.grade) e.grade = '학년을 선택해주세요';
     if (form.hasCard === null) e.hasCard = '내일배움카드 보유 여부를 선택해주세요';
     if (!form.agreed) e.agreed = '개인정보 수집에 동의해주세요';
     return e;
   };
 
   const handleSubmit = async () => {
+    // 내일배움카드 대상자가 아니면 제출 불가
+    if (isIneligible) return;
+
     const e = validate();
     setErrors(e);
     if (Object.keys(e).length > 0) return;
@@ -107,6 +135,12 @@ export default function ApplicationForm({
               {submitted.slice(-10).toUpperCase()}
             </span>
           </div>
+          <div className="flex justify-between items-start mb-3 gap-3">
+            <span className="text-xs text-slate-500 shrink-0">과정</span>
+            <span className="text-xs font-semibold text-slate-900 text-right leading-snug">
+              {course.title}
+            </span>
+          </div>
           <div className="flex justify-between items-center mb-3">
             <span className="text-xs text-slate-500">소속</span>
             <span className="text-xs font-semibold text-slate-900">{universityName}</span>
@@ -117,11 +151,25 @@ export default function ApplicationForm({
           </div>
         </div>
 
+        {/* 메인 버튼: 외부 수강 과정 상세 페이지 새 탭으로 열기 */}
+        <a
+          href={course.externalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'w-full py-3.5 rounded-xl bg-gradient-to-r text-white font-bold text-sm tap-scale shadow-lg shadow-slate-200 flex items-center justify-center gap-2',
+            course.gradient
+          )}
+        >
+          수강 과정 상세보기
+        </a>
+
+        {/* 보조 링크: 같은 대학의 다른 과정 둘러보기 */}
         <Link
           href={`/u/${universitySlug}`}
-          className="w-full py-3.5 rounded-xl bg-slate-900 text-white font-bold text-sm tap-scale text-center"
+          className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-700 underline underline-offset-2"
         >
-          다른 과정 보기
+          다른 과정 둘러보기
         </Link>
       </div>
     );
@@ -172,35 +220,49 @@ export default function ApplicationForm({
             error={errors.department}
           />
 
-          {/* 학년 */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-              학년 <span className="text-rose-500">*</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {GRADES.map((g) => {
-                const active = form.grade === g;
-                return (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => set('grade', g)}
-                    className={cn(
-                      'py-2.5 px-2 rounded-xl border-2 text-sm font-semibold transition tap-scale',
-                      active
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-100'
-                        : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                    )}
-                  >
-                    {g}
-                  </button>
-                );
-              })}
+          {/* 학년 — 4년제 대학만 표시 */}
+          {showGradeSelector && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                학년 <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {FOUR_YEAR_GRADE_OPTIONS.map((g) => {
+                  const active = form.grade === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => set('grade', g)}
+                      className={cn(
+                        'py-3 px-3 rounded-xl border-2 text-sm font-semibold transition tap-scale',
+                        active
+                          ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm shadow-blue-100'
+                          : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                      )}
+                    >
+                      {g}
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.grade && (
+                <p className="text-[11px] text-rose-500 mt-1.5 ml-1 font-medium">{errors.grade}</p>
+              )}
+
+              {/* 카드 대상자 아님 안내 */}
+              {isIneligible && (
+                <div className="mt-3 p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-rose-700 mb-0.5">
+                      내일배움카드 대상자가 아닙니다
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-            {errors.grade && (
-              <p className="text-[11px] text-rose-500 mt-1.5 ml-1 font-medium">{errors.grade}</p>
-            )}
-          </div>
+          )}
 
           <Field
             label="휴대폰"
@@ -325,10 +387,12 @@ export default function ApplicationForm({
       <div className="sticky bottom-0 px-4 py-3 bg-white border-t border-slate-100 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
         <button
           onClick={handleSubmit}
-          disabled={submitting}
+          disabled={submitting || isIneligible}
           className={cn(
-            'w-full py-3.5 rounded-xl bg-gradient-to-r text-white font-bold text-sm tap-scale disabled:opacity-60 shadow-lg shadow-slate-200 flex items-center justify-center gap-2',
-            course.gradient
+            'w-full py-3.5 rounded-xl text-white font-bold text-sm tap-scale shadow-lg shadow-slate-200 flex items-center justify-center gap-2 transition',
+            isIneligible
+              ? 'bg-slate-300 cursor-not-allowed'
+              : cn('bg-gradient-to-r disabled:opacity-60', course.gradient)
           )}
         >
           {submitting ? (
@@ -336,6 +400,8 @@ export default function ApplicationForm({
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               신청 중...
             </>
+          ) : isIneligible ? (
+            <>신청 불가</>
           ) : (
             <>신청서 제출</>
           )}
@@ -357,7 +423,7 @@ function Field({
   error,
 }: {
   label: string;
-  Icon: any;
+  Icon: LucideIcon;
   required?: boolean;
   value: string;
   onChange: (v: string) => void;
