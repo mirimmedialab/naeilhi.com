@@ -9,8 +9,13 @@ import {
   buildAdminEmail,
 } from '@/lib/credentials';
 import type { Role } from '@/types';
+import type { User } from '@supabase/supabase-js';
 
-async function requireAdmin() {
+type RequireAdminResult =
+  | { error: string }
+  | { user: User; profile: { role: Role } };
+
+async function requireAdmin(): Promise<RequireAdminResult> {
   const supabase = await createClient();
   const {
     data: { user },

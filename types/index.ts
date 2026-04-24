@@ -2,7 +2,13 @@
 // 데이터베이스 타입 (Supabase schema에 대응)
 // =============================================================================
 
-export type Role = 'admin' | 'operator';
+/**
+ * 계정 역할.
+ *   - admin         : 모든 기능 (대학/계정/과정/신청/수료)
+ *   - super_operator: 전체 대학 신청·수료만 조회·관리 (총괄 운영자)
+ *   - operator      : 소속 학교 신청·수료만 조회·관리
+ */
+export type Role = 'admin' | 'super_operator' | 'operator';
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
 
 /**
@@ -32,6 +38,12 @@ export interface Profile {
   email: string;
   name: string;
   role: Role;
+  /**
+   * operator의 소속 학교 ID.
+   *   - admin, super_operator : 항상 NULL (DB CHECK)
+   *   - operator              : 항상 NOT NULL (DB CHECK)
+   */
+  university_id: string | null;
   created_at: string;
   updated_at: string;
 }
