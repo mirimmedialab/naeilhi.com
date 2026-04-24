@@ -10,10 +10,12 @@ import {
   BookOpen,
   UserCog,
   ShieldCheck,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROLES } from '@/lib/constants';
+import type { Role } from '@/types';
 
 const ALL_TABS: Array<{
   href: string;
@@ -29,14 +31,15 @@ const ALL_TABS: Array<{
   { href: '/admin/users', label: '계정 관리', Icon: UserCog, adminOnly: true },
 ];
 
-export function AdminNav({ role }: { role: 'admin' | 'operator' }) {
+export function AdminNav({ role }: { role: Role }) {
   const pathname = usePathname();
+  // admin 전용 탭은 admin만 볼 수 있음.
+  // super_operator와 operator는 공통 탭(신청/수료)만 봄.
   const tabs = ALL_TABS.filter((t) => !t.adminOnly || role === 'admin');
 
   return (
     <nav className="max-w-6xl mx-auto px-4 lg:px-6 flex gap-1 overflow-x-auto scroll-hide">
       {tabs.map(({ href, label, Icon }) => {
-        // /admin 은 정확 매치, 나머지는 startsWith
         const active = href === '/admin' ? pathname === '/admin' : pathname.startsWith(href);
         return (
           <Link
@@ -58,19 +61,16 @@ export function AdminNav({ role }: { role: 'admin' | 'operator' }) {
   );
 }
 
-export function RoleBadge({
-  role,
-  name,
-}: {
-  role: 'admin' | 'operator';
-  name: string;
-}) {
+export function RoleBadge({ role, name }: { role: Role; name: string }) {
   const config = ROLES[role];
   const badgeClass =
     role === 'admin'
       ? 'bg-gradient-to-br from-rose-500 to-red-600'
+      : role === 'super_operator'
+      ? 'bg-gradient-to-br from-violet-500 to-purple-600'
       : 'bg-gradient-to-br from-blue-500 to-indigo-600';
-  const Icon = role === 'admin' ? ShieldCheck : UserCog;
+  const Icon =
+    role === 'admin' ? ShieldCheck : role === 'super_operator' ? Users : UserCog;
 
   return (
     <div className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-slate-50 border border-slate-200">

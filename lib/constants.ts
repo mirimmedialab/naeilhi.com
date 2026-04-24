@@ -231,10 +231,15 @@ export const ROLES = {
     shortLabel: 'ADMIN',
     description: '모든 기능 접근 가능',
   },
+  super_operator: {
+    label: '총괄 운영자',
+    shortLabel: 'SUPER',
+    description: '전체 대학 신청·수료 관리',
+  },
   operator: {
     label: '운영자',
     shortLabel: 'OPERATOR',
-    description: '신청·수료 관리 전용',
+    description: '소속 학교 신청·수료 관리',
   },
 } as const;
 

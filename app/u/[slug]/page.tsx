@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { School, CheckCircle2 } from 'lucide-react';
+import { School, CheckCircle2, UserCog } from 'lucide-react';
 import { MobileFrame } from '@/components/mobile-frame';
 import { CourseIcon } from '@/components/course-icon';
 import { MSLogo } from '@/components/ms-logo';
@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server';
 import { COURSES } from '@/lib/constants';
 import { fmt } from '@/lib/utils';
 
-export const revalidate = 300; // 5분 캐시
+export const revalidate = 300;
 
 export async function generateMetadata({
   params,
@@ -138,6 +138,17 @@ export default async function UniversityPage({
           <br />
           수료 시 공식 수료증이 발급됩니다.
         </p>
+      </div>
+
+      {/* 운영자 로그인 버튼 (담당자 전용) */}
+      <div className="px-6 py-5 border-t border-slate-100">
+        <Link
+          href={`/admin/login?redirect=${encodeURIComponent('/admin/applications')}`}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/30 transition tap-scale"
+        >
+          <UserCog className="w-3.5 h-3.5" />
+          운영자로 로그인
+        </Link>
       </div>
 
       <div className="h-6" />

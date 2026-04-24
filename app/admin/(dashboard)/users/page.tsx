@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient, createAdminClient } from '@/lib/supabase/server';
 import UsersClient from './users-client';
-import type { Profile } from '@/types';
+import type { Profile, University } from '@/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,12 +23,20 @@ export default async function UsersPage() {
     redirect('/admin/applications');
   }
 
-  // 모든 프로필을 가져오기 위해 service_role 사용
   const admin = createAdminClient();
-  const { data: users } = await admin
-    .from('profiles')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const [{ data: users }, { data: universities }] = await Promise.all([
+    admin.from('profiles').select('*').order('created_at', { ascending: false }),
+    admin
+      .from('universities')
+      .select('id, name, slug, code, active, created_at, updated_at')
+      .order('name'),
+  ]);
 
-  return <UsersClient users={(users || []) as Profile[]} currentUserId={user.id} />;
+  return (
+    <UsersClient
+      users={(users || []) as Profile[]}
+      universities={(universities || []) as University[]}
+      currentUserId={user.id}
+    />
+  );
 }
