@@ -24,7 +24,7 @@ $$ LANGUAGE SQL SECURITY DEFINER STABLE SET search_path = public;
 CREATE OR REPLACE FUNCTION public.is_staff()
 RETURNS BOOLEAN AS $$
   SELECT COALESCE(
-    (SELECT role IN ('admin', 'operator') FROM public.profiles WHERE id = auth.uid()),
+    (SELECT role IN ('admin', 'super_operator', 'operator') FROM public.profiles WHERE id = auth.uid()),
     FALSE
   );
 $$ LANGUAGE SQL SECURITY DEFINER STABLE SET search_path = public;
@@ -108,14 +108,42 @@ CREATE POLICY applications_insert_public ON applications FOR INSERT
     AND completed IS NULL
   );
 
--- staff(admin + operator)는 전체 조회
+-- admin, super_operator는 전체 조회 가능
+-- operator는 본인 소속 대학 신청만 조회
 CREATE POLICY applications_read_staff ON applications FOR SELECT
-  USING (public.is_staff());
+  USING (
+    -- admin 또는 super_operator는 전체 조회
+    (SELECT role IN ('admin', 'super_operator') FROM public.profiles WHERE id = auth.uid())
+    OR
+    -- operator는 본인 대학 것만 조회
+    (
+      SELECT role = 'operator' AND university_id = applications.university_id
+      FROM public.profiles
+      WHERE id = auth.uid()
+    )
+  );
 
--- staff는 상태 변경 및 수료 정보 업데이트 가능
+-- admin, super_operator는 전체 수정 가능
+-- operator는 본인 소속 대학 신청만 수정 가능
 CREATE POLICY applications_update_staff ON applications FOR UPDATE
-  USING (public.is_staff())
-  WITH CHECK (public.is_staff());
+  USING (
+    (SELECT role IN ('admin', 'super_operator') FROM public.profiles WHERE id = auth.uid())
+    OR
+    (
+      SELECT role = 'operator' AND university_id = applications.university_id
+      FROM public.profiles
+      WHERE id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    (SELECT role IN ('admin', 'super_operator') FROM public.profiles WHERE id = auth.uid())
+    OR
+    (
+      SELECT role = 'operator' AND university_id = applications.university_id
+      FROM public.profiles
+      WHERE id = auth.uid()
+    )
+  );
 
 -- admin만 삭제
 CREATE POLICY applications_delete_admin ON applications FOR DELETE

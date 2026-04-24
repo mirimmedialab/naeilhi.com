@@ -9,12 +9,22 @@ CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email TEXT UNIQUE NOT NULL,
   name TEXT NOT NULL DEFAULT '',
-  role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'operator')),
+  role TEXT NOT NULL DEFAULT 'operator' CHECK (role IN ('admin', 'super_operator', 'operator')),
+  university_id UUID REFERENCES universities(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- university_id 제약조건:
+  --   - admin, super_operator: 항상 NULL
+  --   - operator: 항상 NOT NULL
+  CONSTRAINT profiles_university_id_check CHECK (
+    (role IN ('admin', 'super_operator') AND university_id IS NULL) OR
+    (role = 'operator' AND university_id IS NOT NULL)
+  )
 );
 
 CREATE INDEX idx_profiles_role ON profiles(role);
+CREATE INDEX idx_profiles_university ON profiles(university_id) WHERE role = 'operator';
 
 -- 신규 사용자 가입 시 profiles 자동 생성 트리거
 CREATE OR REPLACE FUNCTION handle_new_user()
